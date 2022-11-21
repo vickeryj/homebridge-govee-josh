@@ -59,7 +59,7 @@ var GoveeTemperature = (function () {
   noble.on('scanStop', async () => {
     setTimeout(() => {
       noble.startScanningAsync('ec88');
-    }, 5000);
+    }, 60000);
   });
 
 
