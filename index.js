@@ -1,54 +1,42 @@
+const noble = require('@abandonware/noble');
+
 module.exports = function (api) {
-  console.log("registering goveeTemperature");
-  api.registerAccessory("homebridge-govee–josh", GoveeTemperature);
+  api.registerAccessory("homebridge-govee–josh", GoveeJosh);
 };
-var GoveeTemperature = (function () {
+var GoveeJosh = (function () {
 
-  let tempC;
-
-  function GoveeTemperature(log, config, api) {
+  let homebridge, homebridgeLog, temperatureService, humidityService;
+  function GoveeJosh(log, config, api) {
     this.log = log;
     this.api = api;
-    tempC = 100;
-    console.log("goveeTemperature called");
-    this.log("goveeTemperature called");
-    this.homebridgeService = new api.hap.Service.TemperatureSensor(config.name);
-    this.homebridgeService.getCharacteristic(api.hap.Characteristic.CurrentTemperature)
-      .setProps({ minValue: -100, maxValue: 100 })
-      .on("get", this.getTemperature);
+
+    this.log("GoveeJosh called");
+
+    homebridge = api;
+    homebridgeLog = log;
+    temperatureService = new api.hap.Service.TemperatureSensor(config.name);
+    humidityService = new api.hap.Service.HumiditySensor(config.name);
   };
 
-  GoveeTemperature.prototype = {
+  GoveeJosh.prototype = {
     identify: function (callback) {
         this.log("Identify requested!");
         callback();
     },
     getServices: function () {
-      console.log("getServices called");
-      if (!this.homebridgeService)
-          return [];
+      this.log("getServices called");
       const informationService = new this.api.hap.Service.AccessoryInformation();
       informationService
          .setCharacteristic(this.api.hap.Characteristic.Manufacturer, "Govee")
           .setCharacteristic(this.api.hap.Characteristic.Model, "H5102")
-      console.log("returning services");
-      return [informationService, this.homebridgeService];
-    },
-    getTemperature: function (callback) {
-      console.log("getTemperature called");
-      callback(null, tempC);
+      return [informationService, temperatureService, humidityService];
     },
   };
 
 
-
-  const noble = require('@abandonware/noble');
-
-  console.log("noble required");
-
-  process.env.NOBLE_REPORT_ALL_HCI_EVENTS = "1"; 
+  process.env.NOBLE_REPORT_ALL_HCI_EVENTS = "1";
   noble.on('stateChange', async (state) => {
-    console.log('state change: ' + state);
+    homebridgeLog('noble state change: ' + state);
     if (state === 'poweredOn') {
       noble.startScanningAsync('ec88');
     } else {
@@ -78,13 +66,14 @@ var GoveeTemperature = (function () {
         if (tempIsNegative) {
           tempInC = 0 - tempInC;
         }
-        tempC = tempInC;
+        temperatureService.updateCharacteristic(homebridge.hap.Characteristic.CurrentTemperature, tempInC);
         const tempInF = (tempInC * 9) / 5 + 32;
-        const humidity = (encodedData % 1000) / 10;1
-        console.log(`${tempInF} ${humidity}`);
+        humidity = (encodedData % 1000) / 10;1
+        humidityService.updateCharacteristic(homebridge.hap.Characteristic.CurrentRelativeHumidity, humidity)
+        homebridgeLog.debug(`temp: ${tempInF} humidity: ${humidity}`);
         noble.stopScanning();
       }
     }
   }));
-  return GoveeTemperature;
+  return GoveeJosh;
 }());
