@@ -49,22 +49,27 @@ var GoveeJosh = (function () {
   function startNoble () {
     const noble = require('@abandonware/noble');
 
+    function discoverGovees () {
+      noble.startScanningAsync('ec88');
+      setTimeout(() => {
+        noble.stopScanning();
+      }, 20000);
+    }
+
     process.env.NOBLE_REPORT_ALL_HCI_EVENTS = "1";
     noble.on('stateChange', async (state) => {
       homebridgeLog('noble state change: ' + state);
       if (state === 'poweredOn') {
-        noble.startScanningAsync('ec88');
+        discoverGovees();
       } else {
         noble.stopScanning();
       }
     });
 
     noble.on('scanStop', async () => {
-      setTimeout(() => {
-        noble.startScanningAsync('ec88');
-      }, 60000);
+      homebridgeLog.debug('scanStop');
+      setTimeout(() => { discoverGovees(); }, 40000);
     });
-
 
     noble.on('discover', (function (peripheral) {
       const { address, advertisement } = peripheral;
@@ -88,8 +93,7 @@ var GoveeJosh = (function () {
           humidity = (encodedData % 1000) / 10;
           const humidityService = govee.getService(homebridge.hap.Service.HumiditySensor);
           humidityService.updateCharacteristic(homebridge.hap.Characteristic.CurrentRelativeHumidity, humidity)
-          homebridgeLog.debug(`${govee.UUID} temp: ${tempInF} humidity: ${humidity}`);
-          //noble.stopScanning();
+          homebridgeLog(`${govee.UUID} temp: ${tempInF} humidity: ${humidity}`);
         }
       }
     }));
